@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement
 from sqlalchemy.orm import Session
 
 from app.database import write_transaction
@@ -25,13 +25,20 @@ class BookingService:
         limit: int,
         offset: int,
     ) -> tuple[Sequence[Booking], int]:
-        stmt = select(Booking).order_by(Booking.start_date, Booking.id)
+        where: list[ColumnElement[bool]] = []
         if property_id is not None:
             get_or_404(self._session, Property, property_id)
-            stmt = stmt.where(Booking.property_id == property_id)
+            where.append(Booking.property_id == property_id)
         if status is not None:
-            stmt = stmt.where(Booking.status == status)
-        return paginate(self._session, stmt, limit=limit, offset=offset)
+            where.append(Booking.status == status)
+        return paginate(
+            self._session,
+            Booking,
+            where=where,
+            order_by=(Booking.start_date, Booking.id),
+            limit=limit,
+            offset=offset,
+        )
 
     def get(self, booking_id: int) -> Booking:
         return get_or_404(self._session, Booking, booking_id)

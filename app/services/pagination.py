@@ -1,16 +1,31 @@
 from collections.abc import Sequence
 from typing import TypeVar
 
-from sqlalchemy import Select, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import ColumnElement, func, select
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
-T = TypeVar("T")
+from app.database import Base
+
+ModelT = TypeVar("ModelT", bound=Base)
 
 
 def paginate(
-    session: Session, stmt: Select[T], *, limit: int, offset: int
-) -> tuple[Sequence[T], int]:
-    """Return one page of single-entity ``stmt`` plus the total number of matching rows."""
-    total = session.scalar(select(func.count()).select_from(stmt.order_by(None).subquery()))
-    items = session.scalars(stmt.limit(limit).offset(offset)).all()
+    session: Session,
+    model: type[ModelT],
+    *,
+    where: Sequence[ColumnElement[bool]] = (),
+    order_by: Sequence[InstrumentedAttribute[object]],
+    limit: int,
+    offset: int,
+) -> tuple[Sequence[ModelT], int]:
+    """Return one page of ``model`` rows matching ``where``, plus the total match count.
+
+    The statement is built here from the model class (rather than accepted as a ``Select``)
+    so the result stays precisely typed across SQLAlchemy 2.0 and 2.1, whose ``Select``
+    generics differ.
+    """
+    total = session.scalar(select(func.count()).select_from(model).where(*where))
+    items = session.scalars(
+        select(model).where(*where).order_by(*order_by).limit(limit).offset(offset)
+    ).all()
     return items, total or 0

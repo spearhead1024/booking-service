@@ -8,6 +8,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      # Report every Python version independently instead of cancelling on first failure.
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.12"]
     steps:

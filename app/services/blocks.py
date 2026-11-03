@@ -1,6 +1,6 @@
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement
 from sqlalchemy.orm import Session
 
 from app.database import write_transaction
@@ -19,11 +19,18 @@ class BlockService:
     def list_page(
         self, *, property_id: int | None = None, limit: int, offset: int
     ) -> tuple[Sequence[Block], int]:
-        stmt = select(Block).order_by(Block.start_date, Block.id)
+        where: list[ColumnElement[bool]] = []
         if property_id is not None:
             get_or_404(self._session, Property, property_id)
-            stmt = stmt.where(Block.property_id == property_id)
-        return paginate(self._session, stmt, limit=limit, offset=offset)
+            where.append(Block.property_id == property_id)
+        return paginate(
+            self._session,
+            Block,
+            where=where,
+            order_by=(Block.start_date, Block.id),
+            limit=limit,
+            offset=offset,
+        )
 
     def get(self, block_id: int) -> Block:
         return get_or_404(self._session, Block, block_id)
